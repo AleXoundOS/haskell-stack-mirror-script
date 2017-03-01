@@ -23,22 +23,22 @@ fi
 WGET="wget -nv" # non-verbose wget
 exec > >(tee mirror.log) # 2>&1
 
-# Stackage ######################################################################
-echo "======= mirroring Stackage... ============================================"
+# Stackage #####################################################################
+echo "======= mirroring Stackage... ==========================================="
 
-echo "======= downloading stack setup YAML ====================================="
+echo "======= downloading stack setup YAML ===================================="
 $WGET -N -P "$MIRROR_DIR" "$STACK_SETUP" 2>&1 \
 || (echo "error downloading stack setup YAML" && exit 1)
 STACK_SETUP_MIRROR_ESC=\
 $(echo $STACK_SETUP_MIRROR | sed -e 's/[\/&]/\\&/g')
 # replace part of url except it's basename in all urls from YAML
-sed "s/\( \+url\: \+\)\"http.*\/\([^?]*\).*\"\$/\1$STACK_SETUP_MIRROR_ESC\/\2/" \
+sed "s/\( \+url\: \*\)\"http.*\/\([^?]*\).*\"\$/\1$STACK_SETUP_MIRROR_ESC\/\2/"\
   "$MIRROR_DIR/stack-setup-2.yaml" \
   > "$MIRROR_DIR/stack-setup-mirror.yaml"
 echo
 
 
-echo "======= producing list of stack setup files to download =================="
+echo "======= producing list of stack setup files to download ================="
 YAML="$MIRROR_DIR/$(basename $STACK_SETUP)"
 REGEX_SHA1="sha1\: *\([[:xdigit:]]*\)"
 : > download-stack-urls
@@ -50,7 +50,7 @@ egrep -n "url:( *)\"(.*)\"" "$YAML" \
         url=$(sed -n "${line_number}s/ \+url: *\"\(.*\)\"/\1/p" "$YAML")
         whitespace=$(sed -n "${line_number}s/\( \+\)url\: *\".*\"/\1/p" "$YAML")
         sha1=""
-        
+
         # trying to find sha1 below
         line_below=$(expr $line_number + 1)
         while test -z $sha1; do
@@ -63,7 +63,7 @@ egrep -n "url:( *)\"(.*)\"" "$YAML" \
             fi
             ((++line_below))
         done
-        
+
         # trying to find sha1 above
         line_above=$(expr $line_number - 1)
         while test -z $sha1; do
@@ -76,7 +76,7 @@ egrep -n "url:( *)\"(.*)\"" "$YAML" \
             fi
             ((--line_above))
         done
-        
+
         echo $url >> download-stack-urls
         if test -z $sha1; then
             echo "could not get sha1 for $url ($YAML:line $line_number)"
@@ -90,7 +90,7 @@ mv download-stack-checksums-sorted download-stack-checksums
 echo
 
 
-echo "======= downloading stack setup files ===================================="
+echo "======= downloading stack setup files ==================================="
 $WGET -nc -i download-stack-urls --directory-prefix="$MIRROR_DIR/stack" 2>&1 \
   | (>&2 tee download-stack.log) \
 || echo "error downloading one or more stack setup files"
@@ -103,7 +103,7 @@ done
 echo
 
 
-echo "======= checking stack setup files ======================================="
+echo "======= checking stack setup files ======================================"
 touch checked-stack-checksums
 comm -23 download-stack-checksums checked-stack-checksums \
   > check-stack-checksums
@@ -128,7 +128,7 @@ sort -m checked-stack-checksums-old checked-stack-checksums-new \
 echo
 
 
-echo "======= downloading snapshots.json ======================================="
+echo "======= downloading snapshots.json ======================================"
 $WGET -N -P "$MIRROR_DIR" "$STACKAGE_SNAPSHOTS" 2>&1
 if [ $? -ne 0 ]; then
     echo "error downloading snapshots.json"
@@ -137,7 +137,7 @@ fi
 echo
 
 
-echo "======= downloading lts build plans ======================================"
+echo "======= downloading lts build plans ====================================="
 if test -d "$MIRROR_DIR/build-plans/lts-haskell"; then
     cd "$MIRROR_DIR/build-plans/lts-haskell"
     git pull origin master
@@ -156,7 +156,7 @@ fi
 echo
 
 
-echo "======= downloading nightly build plans =================================="
+echo "======= downloading nightly build plans ================================="
 if test -d "$MIRROR_DIR/build-plans/stackage-nightly"; then
     cd "$MIRROR_DIR/build-plans/stackage-nightly"
     git pull origin master
@@ -174,10 +174,10 @@ else
 fi
 echo
 
-# Hackage #######################################################################
-echo "======= mirroring Hackage... ============================================="
+# Hackage ######################################################################
+echo "======= mirroring Hackage... ============================================"
 
-echo "======= downloading package index ========================================"
+echo "======= downloading package index ======================================="
 $WGET -N -P "$MIRROR_DIR" "$HACKAGE_INDEX" 2>&1
 if [ $? -ne 0 ]; then
     echo "error downloading package index"
@@ -186,7 +186,7 @@ fi
 echo
 
 
-echo "======= producing list of packages urls to download ======================"
+echo "======= producing list of packages urls to download ====================="
 HACKAGE_MIRROR_ESC=$(echo $HACKAGE_MIRROR | sed -e 's/[\/&]/\\&/g')
 
 tar --list -f "$MIRROR_DIR/$(basename $HACKAGE_INDEX)" \
@@ -200,7 +200,7 @@ fi
 echo
 
 
-echo "======= downloading packages ============================================="
+echo "======= downloading packages ============================================"
 $WGET -nc \
   -i download-packages-urls --directory-prefix="$MIRROR_DIR/packages" 2>&1 \
   | (>&2 tee download-packages.log) \
@@ -208,7 +208,7 @@ $WGET -nc \
 echo
 
 
-echo "======= checking packages ================================================"
+echo "======= checking packages ==============================================="
 sed -n 's/.*\/\(.*.tar.gz\)/\1/p' download-packages-urls \
   > download-packages-files
 touch checked-packages-files
