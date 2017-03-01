@@ -1,29 +1,139 @@
 #!/bin/bash
 
+STACK_SETUP="https://raw.githubusercontent.com/fpco/stackage-content/\
+master/stack/stack-setup-2.yaml"
 STACKAGE_SNAPSHOTS="https://www.stackage.org/download/snapshots.json"
 STACKAGE_BP_LTS="https://github.com/fpco/lts-haskell.git"
 STACKAGE_BP_NIGHT="https://github.com/fpco/stackage-nightly.git"
-HACKAGE_PKG_DIR="https://s3.amazonaws.com/hackage.fpcomplete.com/package"
+HACKAGE_MIRROR="https://s3.amazonaws.com/hackage.fpcomplete.com/package"
 HACKAGE_INDEX="https://s3.amazonaws.com/hackage.fpcomplete.com/00-index.tar.gz"
 
-#exec > >(tee mirror_stackage.log) 2>&1
-exec > >(tee mirror_stackage.log)
+if test -z $1; then
+    MIRROR_DIR="mirror"
+else
+    MIRROR_DIR="$1"
+fi
+
+if test -z $2; then
+    STACK_SETUP_MIRROR="http://localhost:3000/stack"
+else
+    STACK_SETUP_MIRROR="$2"
+fi
+
+WGET="wget -nv" # non-verbose wget
+exec > >(tee mirror.log) # 2>&1
 
 # Stackage ######################################################################
-echo "mirroring Stackage..."
+echo "======= mirroring Stackage... ============================================"
 
-echo "downloading snapshots.json"
-wget -N -nv -P "mirror" "$STACKAGE_SNAPSHOTS" 2>&1
+echo "======= downloading stack setup yaml ====================================="
+$WGET -N -P "$MIRROR_DIR" "$STACK_SETUP" 2>&1 \
+|| (echo "error downloading stack setup yaml" && exit 1)
+STACK_SETUP_MIRROR_ESC=\
+$(echo $STACK_SETUP_MIRROR | sed -e 's/[\/&]/\\&/g')
+
+sed "s/\( \+url\: \+\)\"http.*\/\(.*\)\"\$/\1$STACK_SETUP_MIRROR_ESC\/\2/" \
+  "$MIRROR_DIR/stack-setup-2.yaml" \
+  > "$MIRROR_DIR/stack-setup-mirror.yaml"
+echo
+
+
+echo "======= producing list of stack setup files to download =================="
+YAML="$MIRROR_DIR/$(basename $STACK_SETUP)"
+REGEX_SHA1="sha1\: *\([[:xdigit:]]*\)"
+: > download-stack-urls
+: > download-stack-checksums
+# get line numbers of url records in YAML and find nearby sha1
+egrep -n "url:( *)\"(.*)\"" "$YAML" \
+  | cut -d':' -f1 \
+  | while read line_number; do
+        url=$(sed -n "${line_number}s/ \+url: *\"\(.*\)\"/\1/p" "$YAML")
+        whitespace=$(sed -n "${line_number}s/\( \+\)url\: *\".*\"/\1/p" "$YAML")
+        sha1=""
+        
+        # trying to find sha1 below
+        line_below=$(expr $line_number + 1)
+        while test -z $sha1; do
+            if test -z "$(sed -n "${line_below}s/\(${whitespace}\).*/\1/p" \
+                          "$YAML")"; then
+                break
+            else
+                sha1=$(sed -n "${line_below}s/${whitespace}$REGEX_SHA1/\1/p" \
+                       "$YAML")
+            fi
+            ((++line_below))
+        done
+        
+        # trying to find sha1 above
+        line_above=$(expr $line_number - 1)
+        while test -z $sha1; do
+            if test -z "$(sed -n "${line_above}s/\(${whitespace}\).*/\1/p" \
+                          "$YAML")"; then
+                break
+            else
+                sha1=$(sed -n "${line_above}s/${whitespace}$REGEX_SHA1/\1/p" \
+                       "$YAML")
+            fi
+            ((--line_above))
+        done
+        
+        echo $url >> download-stack-urls
+        if test -z $sha1; then
+            echo "could not get sha1 for $url ($YAML:line $line_number)"
+        else
+            echo "$sha1  $MIRROR_DIR/stack/$(basename $url)" \
+              >> download-stack-checksums
+        fi
+    done
+sort -u download-stack-checksums > download-stack-checksums-sorted
+mv download-stack-checksums-sorted download-stack-checksums
+echo
+
+
+echo "======= downloading stack setup files ===================================="
+$WGET -nc -i download-stack-urls --directory-prefix="$MIRROR_DIR/stack" 2>&1 \
+  | (>&2 tee -a download-stack.log) \
+|| echo "error downloading one or more stack setup files"
+echo
+
+
+echo "======= checking stack setup files ======================================="
+touch checked-stack-checksums
+comm -23 download-stack-checksums checked-stack-checksums \
+  > check-stack-checksums
+: > checked-stack-checksums-new
+i=0
+overall_count=$(wc -l check-stack-checksums | cut -d' ' -f1)
+while read line; do
+    printf "\r%3u/%s" $i $overall_count 1>&2
+    echo "$line" | sha1sum -c --quiet
+    if [ $? -eq 0 ]; then
+        echo "$line" >> checked-stack-checksums-new
+    else
+        echo "corrupted stack setup file: $(echo $line | cut -d' ' -f1)"
+        rm -fv "$line"
+        echo "run the script again to try to re-download it"
+    fi
+    ((++i))
+done < check-stack-checksums
+mv checked-stack-checksums checked-stack-checksums-old
+sort -m checked-stack-checksums-old checked-stack-checksums-new \
+  > checked-stack-checksums
+echo
+
+
+echo "======= downloading snapshots.json ======================================="
+$WGET -N -P "$MIRROR_DIR" "$STACKAGE_SNAPSHOTS" 2>&1
 if [ $? -ne 0 ]; then
     echo "error downloading snapshots.json"
     exit 1
 fi
-echo "done downloading snapshots.json"
 echo
 
-echo "downloading lts build plans"
-if test -d "mirror/build-plans/lts-haskell"; then
-    cd "mirror/build-plans/lts-haskell"
+
+echo "======= downloading lts build plans ======================================"
+if test -d "$MIRROR_DIR/build-plans/lts-haskell"; then
+    cd "$MIRROR_DIR/build-plans/lts-haskell"
     git pull origin master
     if [ $? -ne 0 ]; then
         echo "error pulling repository of lts-haskell build plans"
@@ -31,18 +141,18 @@ if test -d "mirror/build-plans/lts-haskell"; then
     fi
     cd -
 else
-    git clone $STACKAGE_BP_LTS "mirror/build-plans/lts-haskell"
+    git clone $STACKAGE_BP_LTS "$MIRROR_DIR/build-plans/lts-haskell"
     if [ $? -ne 0 ]; then
         echo "error cloning repository of lts-haskell build plans"
         exit 3
     fi
 fi
-echo "done downloading lts build plans"
 echo
 
-echo "downloading nightly build plans"
-if test -d "mirror/build-plans/stackage-nightly"; then
-    cd "mirror/build-plans/stackage-nightly"
+
+echo "======= downloading nightly build plans =================================="
+if test -d "$MIRROR_DIR/build-plans/stackage-nightly"; then
+    cd "$MIRROR_DIR/build-plans/stackage-nightly"
     git pull origin master
     if [ $? -ne 0 ]; then
         echo "error pulling repository of stackage-nightly build plans"
@@ -50,73 +160,73 @@ if test -d "mirror/build-plans/stackage-nightly"; then
     fi
     cd -
 else
-    git clone $STACKAGE_BP_NIGHT "mirror/build-plans/stackage-nightly"
+    git clone $STACKAGE_BP_NIGHT "$MIRROR_DIR/build-plans/stackage-nightly"
     if [ $? -ne 0 ]; then
         echo "error cloning repository of stackage-nightly build plans"
         exit 5
     fi
 fi
-echo "done downloading nightly build plans"
 echo
 
 # Hackage #######################################################################
-echo "mirroring Hackage..."
+echo "======= mirroring Hackage... ============================================="
 
-echo "downloading package index"
-wget -N -nv -P "mirror" "$HACKAGE_INDEX" 2>&1
+echo "======= downloading package index ========================================"
+$WGET -N -P "$MIRROR_DIR" "$HACKAGE_INDEX" 2>&1
 if [ $? -ne 0 ]; then
     echo "error downloading package index"
     exit 6
 fi
-echo "done downloading package index"
 echo
 
-echo "producing list of packages urls to download"
-HACKAGE_PKG_DIR_ESC=$(echo $HACKAGE_PKG_DIR | sed -e 's/[\/&]/\\&/g')
 
-tar --list -f "mirror/$(basename $HACKAGE_INDEX)" \
-| egrep "(.*)/([[:digit:].]+)/$" \
-| sed "s/\(.*\)\/\(.*\)\/$/$HACKAGE_PKG_DIR_ESC\/\1-\2.tar.gz/" \
-| sort -o download-packages-urls
+echo "======= producing list of packages urls to download ======================"
+HACKAGE_MIRROR_ESC=$(echo $HACKAGE_MIRROR | sed -e 's/[\/&]/\\&/g')
+
+tar --list -f "$MIRROR_DIR/$(basename $HACKAGE_INDEX)" \
+  | egrep "(.*)/([[:digit:].]+)/$" \
+  | sed "s/\(.*\)\/\(.*\)\/$/$HACKAGE_MIRROR_ESC\/\1-\2.tar.gz/" \
+  | sort -o download-packages-urls
 if [ $? -ne 0 ]; then
     echo "error getting list of packages urls to download"
     exit 7
 fi
-echo "done getting list of packages urls to download"
 echo
 
-echo "downloading packages"
-wget -nc -nv -i download-packages-urls --directory-prefix="mirror/packages" \
-  -a download-packages-log
-if [ $? -ne 0 ]; then
-    echo "error downloading one or more packages"
-else
-    echo "done downloading packages"
-fi
+
+echo "======= downloading packages ============================================="
+$WGET -nc \
+  -i download-packages-urls --directory-prefix="$MIRROR_DIR/packages" 2>&1 \
+  | (>&2 tee -a download-packages.log) \
+|| (echo "error downloading one or more packages")
 echo
 
-echo "checking packages, re-download if corrupted"
-touch checked-packages-urls
-# producing a list of packages to check (never checked before)
-comm -23 download-packages-urls checked-packages-urls > check-packages-urls
+
+echo "======= checking packages ================================================"
+sed -n 's/.*\/\(.*.tar.gz\)/\1/p' download-packages-urls \
+  > download-packages-files
+touch checked-packages-files
+# producing a list of packages to check (not checked before)
+comm -23 download-packages-files checked-packages-files \
+  > check-packages-files
+: > checked-packages-files-new
 i=0
-overall_count=$(wc -l check-packages-urls | cut -d' ' -f1)
+overall_count=$(wc -l check-packages-files | cut -d' ' -f1)
 while read line; do
     printf "\r%5u/%s" $i $overall_count 1>&2
-    gzip --test "mirror/packages/$(basename $line)" 2>&1 \
-    || wget -nv -O "mirror/packages/$(basename $line)" $line 2>&1 \
-    || gzip --test "mirror/packages/$(basename $line)" 2>&1
+    gzip --test "$MIRROR_DIR/packages/$line"
     if [ $? -eq 0 ]; then
-        echo $line >> checked-packages-urls-new
+        echo $line >> checked-packages-files-new
+    else
+        echo "corrupted or missing package file: $line"
+        rm -fv "$MIRROR_DIR/packages/$line"
+        echo "run the script again to try to re-download it"
     fi
-    ((i++))
-done < check-packages-urls
-mv checked-packages-urls checked-packages-urls-old
-sort -m checked-packages-urls-old checked-packages-urls-new \
-> checked-packages-urls
-
-echo
-echo "done checking and re-downloading packages"
+    ((++i))
+done < check-packages-files
+mv checked-packages-files checked-packages-files-old
+sort -m checked-packages-files-old checked-packages-files-new \
+  > checked-packages-files
 echo
 
 echo "finished"
