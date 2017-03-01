@@ -26,13 +26,13 @@ exec > >(tee mirror.log) # 2>&1
 # Stackage ######################################################################
 echo "======= mirroring Stackage... ============================================"
 
-echo "======= downloading stack setup yaml ====================================="
+echo "======= downloading stack setup YAML ====================================="
 $WGET -N -P "$MIRROR_DIR" "$STACK_SETUP" 2>&1 \
-|| (echo "error downloading stack setup yaml" && exit 1)
+|| (echo "error downloading stack setup YAML" && exit 1)
 STACK_SETUP_MIRROR_ESC=\
 $(echo $STACK_SETUP_MIRROR | sed -e 's/[\/&]/\\&/g')
-
-sed "s/\( \+url\: \+\)\"http.*\/\(.*\)\"\$/\1$STACK_SETUP_MIRROR_ESC\/\2/" \
+# replace part of url except it's basename in all urls from YAML
+sed "s/\( \+url\: \+\)\"http.*\/\([^?]*\).*\"\$/\1$STACK_SETUP_MIRROR_ESC\/\2/" \
   "$MIRROR_DIR/stack-setup-2.yaml" \
   > "$MIRROR_DIR/stack-setup-mirror.yaml"
 echo
@@ -81,7 +81,7 @@ egrep -n "url:( *)\"(.*)\"" "$YAML" \
         if test -z $sha1; then
             echo "could not get sha1 for $url ($YAML:line $line_number)"
         else
-            echo "$sha1  $MIRROR_DIR/stack/$(basename $url)" \
+            echo "$sha1  $MIRROR_DIR/stack/$(basename $url | cut -d'?' -f1)" \
               >> download-stack-checksums
         fi
     done
@@ -92,8 +92,14 @@ echo
 
 echo "======= downloading stack setup files ===================================="
 $WGET -nc -i download-stack-urls --directory-prefix="$MIRROR_DIR/stack" 2>&1 \
-  | (>&2 tee -a download-stack.log) \
+  | (>&2 tee download-stack.log) \
 || echo "error downloading one or more stack setup files"
+# truncate filenames with '?'
+for filename in "$MIRROR_DIR/stack/"*; do
+    if [[ $filename == *\?* ]]; then
+        mv -v $filename $(echo $filename | sed -n 's/\([^?]*\)\?.*/\1/p')
+    fi
+done
 echo
 
 
@@ -197,7 +203,7 @@ echo
 echo "======= downloading packages ============================================="
 $WGET -nc \
   -i download-packages-urls --directory-prefix="$MIRROR_DIR/packages" 2>&1 \
-  | (>&2 tee -a download-packages.log) \
+  | (>&2 tee download-packages.log) \
 || (echo "error downloading one or more packages")
 echo
 
