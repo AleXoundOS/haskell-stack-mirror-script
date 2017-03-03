@@ -152,7 +152,7 @@ echo "======= downloading snapshots.json ======================================"
 $WGET -N -P "$MIRROR_DIR" "$STACKAGE_SNAPSHOTS" 2>&1
 if [ $? -ne 0 ]; then
     echo "error downloading snapshots.json"
-    exit 1
+    exit 2
 fi
 echo
 
@@ -163,14 +163,14 @@ if test -d "$MIRROR_DIR/build-plans/lts-haskell"; then
     git pull origin master
     if [ $? -ne 0 ]; then
         echo "error pulling repository of lts-haskell build plans"
-        exit 2
+        exit 3
     fi
     cd -
 else
     git clone $STACKAGE_BP_LTS "$MIRROR_DIR/build-plans/lts-haskell"
     if [ $? -ne 0 ]; then
         echo "error cloning repository of lts-haskell build plans"
-        exit 3
+        exit 4
     fi
 fi
 echo
@@ -182,14 +182,14 @@ if test -d "$MIRROR_DIR/build-plans/stackage-nightly"; then
     git pull origin master
     if [ $? -ne 0 ]; then
         echo "error pulling repository of stackage-nightly build plans"
-        exit 4
+        exit 5
     fi
     cd -
 else
     git clone $STACKAGE_BP_NIGHT "$MIRROR_DIR/build-plans/stackage-nightly"
     if [ $? -ne 0 ]; then
         echo "error cloning repository of stackage-nightly build plans"
-        exit 5
+        exit 6
     fi
 fi
 echo
@@ -201,7 +201,7 @@ echo "======= downloading package index ======================================="
 $WGET -N -P "$MIRROR_DIR" "$HACKAGE_INDEX" 2>&1
 if [ $? -ne 0 ]; then
     echo "error downloading package index"
-    exit 6
+    exit 7
 fi
 echo
 
@@ -215,7 +215,7 @@ tar --list -f "$MIRROR_DIR/$(basename $HACKAGE_INDEX)" \
   | sort -o download-packages-urls
 if [ $? -ne 0 ]; then
     echo "error getting list of packages urls to download"
-    exit 7
+    exit 8
 fi
 echo
 
