@@ -15,13 +15,19 @@ else
 fi
 
 if test -z $2; then
-    STACK_SETUP_MIRROR="http://localhost:3000/stack"
+    MIRROR_URL="http://localhost:3000"
 else
-    STACK_SETUP_MIRROR="$2"
+    MIRROR_URL="$2"
 fi
 
 WGET="wget -nv" # non-verbose wget
 exec > >(tee mirror.log) # 2>&1
+
+# generating config.yaml
+eval "cat <<EOF
+$(< config.yaml.sh)
+EOF" > config.yaml
+
 
 # Stackage #####################################################################
 echo "======= mirroring Stackage... ==========================================="
@@ -29,10 +35,10 @@ echo "======= mirroring Stackage... ==========================================="
 echo "======= downloading stack setup YAML ===================================="
 $WGET -N -P "$MIRROR_DIR" "$STACK_SETUP" 2>&1 \
 || (echo "error downloading stack setup YAML" && exit 1)
-STACK_SETUP_MIRROR_ESC=\
-$(echo $STACK_SETUP_MIRROR | sed -e 's/[\/&]/\\&/g')
+MIRROR_URL_ESC=\
+$(echo $MIRROR_URL | sed -e 's/[\/&]/\\&/g')
 # replace part of url except it's basename in all urls from YAML
-sed "s/\( \+url\: \*\)\"http.*\/\([^?]*\).*\"\$/\1$STACK_SETUP_MIRROR_ESC\/\2/"\
+sed "s/\( \+url\: *\)\"http.*\/\([^?]*\).*\"\$/\1$MIRROR_URL_ESC\/stack\/\2/" \
   "$MIRROR_DIR/stack-setup-2.yaml" \
   > "$MIRROR_DIR/stack-setup-mirror.yaml"
 echo
