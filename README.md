@@ -38,7 +38,9 @@ The script also performs:
 
 ### Issues
 * Currently *stack* does not correcly support `setup-info:` field in
-"config.yaml". Related issue: #1. This means that in order to run `stack setup`
+"config.yaml". Related issue: [#1]
+(https://github.com/AleXoundOS/haskell-dev-mirror-script/issues/1).
+This means that in order to run `stack setup`
 you have to supply a path to "mirror/stack-setup-mirror.yaml" manually with
 `--setup-info-yaml` option. So if running on server side it can be:
 ```
@@ -57,7 +59,7 @@ environments may require special treatment. Sorry I don't have a suitable
 working non-Unix system and not so confident to adjust script to them without
 testing.
 
-* The list of required programs to be installed prio to running the script
+* The list of required programs to be installed prior to running the script
 is not short. Though these are all pretty standard on any Unix-like OS.
 
 * As of 2017-03-04 there is one broken package on Hackage: hermes-1.3.4.3, that
