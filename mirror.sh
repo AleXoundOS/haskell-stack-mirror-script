@@ -99,13 +99,13 @@ egrep -n "url:( *)\"(.*)\"" "$YAML" \
 
         echo $url >> download-stack-urls
         if test -z $sha1; then
-            echo "could not get sha1 for $url ($YAML:line $line_number)"
+            echo "could not get sha1 for $url ($YAML:$line_number)"
         else
             echo "$sha1  $MIRROR_DIR/stack/$(basename $url | cut -d'?' -f1)" \
               >> download-stack-checksums
         fi
     done
-sort -u download-stack-checksums > download-stack-checksums-sorted
+sort -u download-stack-checksums -o download-stack-checksums-sorted
 mv download-stack-checksums-sorted download-stack-checksums
 echo
 
@@ -144,7 +144,7 @@ while read line; do
 done < check-stack-checksums
 mv checked-stack-checksums checked-stack-checksums-old
 sort -m checked-stack-checksums-old checked-stack-checksums-new \
-  > checked-stack-checksums
+  -o checked-stack-checksums
 echo
 
 
@@ -252,7 +252,7 @@ while read line; do
 done < check-packages-files
 mv checked-packages-files checked-packages-files-old
 sort -m checked-packages-files-old checked-packages-files-new \
-  > checked-packages-files
+  -o checked-packages-files
 echo
 
 echo "finished"
