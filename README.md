@@ -1,4 +1,4 @@
-### This script downloads everything you need to develop software in Haskell
+### This script downloads everything you need today to develop software in Haskell
 (except remote documentation)
 
 That is: **stack infrastracture** and **hackage packages**.
@@ -7,8 +7,7 @@ In order to establish the **offline mirror** you need a *http server* to serve
 downloaded files.
 
 ### Usage
-Run [mirror.sh]
-(https://github.com/AleXoundOS/haskell-dev-mirror-script/blob/master/mirror.sh)
+Run [mirror.sh](mirror.sh)
 with the following options or none accepting defaults.
 
 Options (by argument number):
@@ -39,12 +38,12 @@ The script also performs:
 ### Issues
 * Currently *stack* does not correcly support `setup-info:` field in
 "config.yaml". Related issue: [#1]
-(https://github.com/AleXoundOS/haskell-dev-mirror-script/issues/1).
+(https://github.com/AleXoundOS/haskell-stack-mirror-script/issues/1).
 This means that in order to run `stack setup`
 you have to supply a path to "mirror/stack-setup-mirror.yaml" manually with
 `--setup-info-yaml` option. So if running on server side it can be:
 ```
-stack setup --setup-info-yaml /srv/http/haskell-dev-mirror/stack-setup-mirror.yaml
+stack setup --setup-info-yaml /srv/http/haskell-stack-mirror/stack-setup-mirror.yaml
 ```
 
 * Bash script can be error-prone with it's imperative nature and intended to be
@@ -69,7 +68,7 @@ It's ok.
 ### Tested configuration
 Tested on Arch Linux x86_64 (2017-03-03) with nginx.
 <details><summary>nginx configuration example (/etc/nginx/nginx.conf) assuming
-that you put mirror directory into "/srv/http/haskell-dev-mirror"</summary>
+that you put mirror directory into "/srv/http/haskell-stack-mirror"</summary>
 ```nginx
 events {
     worker_connections  1024;
@@ -80,9 +79,9 @@ http {
     sendfile        on;
     server {
         listen       3000;
-        server_name  haskell-dev-mirror;
+        server_name  haskell-stack-mirror;
         location / {
-            root /srv/http/haskell-dev-mirror;
+            root /srv/http/haskell-stack-mirror;
         }
     }
 }
