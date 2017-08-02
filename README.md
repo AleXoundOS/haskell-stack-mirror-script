@@ -21,6 +21,8 @@ apache, mighttpd2, lighttpd, etc)
 * generated "config.yaml" needed to be placed on clients here:
 "~/.stack/config.yaml"
 
+Once you set up web server use *stack* without internet connection!
+
 The script also performs:
 * checking downloaded files integrity
 * skipping of downloaded checked files on consequent runs
@@ -37,13 +39,16 @@ The script also performs:
 
 ### Issues
 * Currently *stack* does not correcly support `setup-info:` field in
-"config.yaml". Related issue: [#1]
-(https://github.com/AleXoundOS/haskell-stack-mirror-script/issues/1).
+"config.yaml". Related issue: [#1](https://github.com/AleXoundOS/haskell-stack-mirror-script/issues/1).
 This means that in order to run `stack setup`
 you have to supply a path to "mirror/stack-setup-mirror.yaml" manually with
 `--setup-info-yaml` option. So if running on server side it can be:
 ```
 stack setup --setup-info-yaml /srv/http/haskell-stack-mirror/stack-setup-mirror.yaml
+```
+On client side:
+```
+stack setup --setup-info-yaml http://custom-server-address:12345/srv/http/haskell-stack-mirror/stack-setup-mirror.yaml
 ```
 
 * Bash script can be error-prone with it's imperative nature and intended to be
@@ -61,7 +66,7 @@ testing.
 * The list of required programs to be installed prior to running the script
 is not short. Though these are all pretty standard on any Unix-like OS.
 
-* As of 2017-03-04 there is one broken package on Hackage: hermes-1.3.4.3, that
+* As of 2017-08-03 there is one broken package on Hackage: hermes-1.3.4.3, that
 has missing files on the server, thus causing some warning messages to show.
 It's ok.
 
@@ -88,7 +93,7 @@ http {
 ```
 </details>
 
-As of 2017-03-04 a fully downloaded mirror directory uses 20&nbsp;GiB of space.
+As of 2017-08-03 a fully downloaded mirror directory uses 25&nbsp;GiB of space.
 Approximate time it takes to verify all files integrity ~15&nbsp;minutes on a
 2.2Ghz&nbsp;CPU. In case there are no new files it takes less than a minute to
 check for updates.
@@ -100,8 +105,7 @@ documentation (and maybe other).
 ### Inspiration and thanks
 This project is inspired by
 [offline-stack](https://github.com/ndmitchell/offline-stack) project and this
-[google groups thread]
-(https://groups.google.com/forum/#!topic/haskell-stack/LHG9DSrz8k8).
+[google groups thread](https://groups.google.com/forum/#!topic/haskell-stack/LHG9DSrz8k8).
 Special thanks to [Neil Mitchell](https://github.com/ndmitchell) !
 
 ### Warning!
