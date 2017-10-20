@@ -210,7 +210,7 @@ echo "======= producing list of packages urls to download ====================="
 HACKAGE_MIRROR_ESC=$(echo $HACKAGE_MIRROR | sed -e 's/[\/&]/\\&/g')
 
 tar --list -f "$MIRROR_DIR/$(basename $HACKAGE_INDEX)" \
-  | egrep "(.*)/([[:digit:].]+)/$" \
+  | egrep -o "(.*)/([[:digit:].]+)/" \
   | sed "s/\(.*\)\/\(.*\)\/$/$HACKAGE_MIRROR_ESC\/\1-\2.tar.gz/" \
   | sort -o download-packages-urls
 if [ $? -ne 0 ]; then
