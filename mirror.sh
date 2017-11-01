@@ -22,13 +22,13 @@ STACKAGE_BP_NIGHT="https://github.com/fpco/stackage-nightly.git"
 HACKAGE_MIRROR="https://s3.amazonaws.com/hackage.fpcomplete.com/package"
 HACKAGE_INDEX="https://s3.amazonaws.com/hackage.fpcomplete.com/01-index.tar.gz"
 
-if test -z $1; then
+if test -z "$1"; then
     MIRROR_DIR="mirror"
 else
     MIRROR_DIR="$1"
 fi
 
-if test -z $2; then
+if test -z "$2"; then
     MIRROR_URL="http://localhost:3000"
 else
     MIRROR_URL="$2"
@@ -50,7 +50,7 @@ echo "======= downloading stack setup YAML ===================================="
 $WGET -N -P "$MIRROR_DIR" "$STACK_SETUP" 2>&1 \
 || (echo "error downloading stack setup YAML" && exit 1)
 MIRROR_URL_ESC=\
-$(echo $MIRROR_URL | sed -e 's/[\/&]/\\&/g')
+$(echo "$MIRROR_URL" | sed -e 's/[\/&]/\\&/g')
 # replace part of url except it's basename in all urls from YAML
 sed "s/\( \+url\: *\)\"http.*\/\([^?]*\).*\"\$/\1$MIRROR_URL_ESC\/stack\/\2/" \
   "$MIRROR_DIR/stack-setup-2.yaml" \
@@ -64,15 +64,15 @@ REGEX_SHA1="sha1\: *\([[:xdigit:]]*\)"
 : > download-stack-urls
 : > download-stack-checksums
 # get line numbers of url records in YAML and find nearby sha1
-egrep -n "url:( *)\"(.*)\"" "$YAML" \
+grep -E -n "url:( *)\"(.*)\"" "$YAML" \
   | cut -d':' -f1 \
-  | while read line_number; do
+  | while read -r line_number; do
         url=$(sed -n "${line_number}s/ \+url: *\"\(.*\)\"/\1/p" "$YAML")
         whitespace=$(sed -n "${line_number}s/\( \+\)url\: *\".*\"/\1/p" "$YAML")
         sha1=""
 
         # trying to find sha1 below
-        line_below=$(expr $line_number + 1)
+        line_below=$((line_number + 1))
         while test -z $sha1; do
             if test -z "$(sed -n "${line_below}s/\(${whitespace}\).*/\1/p" \
                           "$YAML")"; then
@@ -85,8 +85,8 @@ egrep -n "url:( *)\"(.*)\"" "$YAML" \
         done
 
         # trying to find sha1 above
-        line_above=$(expr $line_number - 1)
-        while test -z $sha1; do
+        line_above=$((line_number - 1))
+        while test -z "$sha1"; do
             if test -z "$(sed -n "${line_above}s/\(${whitespace}\).*/\1/p" \
                           "$YAML")"; then
                 break
@@ -97,11 +97,11 @@ egrep -n "url:( *)\"(.*)\"" "$YAML" \
             ((--line_above))
         done
 
-        echo $url >> download-stack-urls
-        if test -z $sha1; then
+        echo "$url" >> download-stack-urls
+        if test -z "$sha1"; then
             echo "could not get sha1 for $url ($YAML:$line_number)"
         else
-            echo "$sha1  $MIRROR_DIR/stack/$(basename $url | cut -d'?' -f1)" \
+            echo "$sha1  $MIRROR_DIR/stack/$(basename "$url" | cut -d'?' -f1)" \
               >> download-stack-checksums
         fi
     done
@@ -117,7 +117,8 @@ $WGET -nc -i download-stack-urls --directory-prefix="$MIRROR_DIR/stack" 2>&1 \
 # truncate filenames with '?'
 for filename in "$MIRROR_DIR/stack/"*; do
     if [[ $filename == *\?* ]]; then
-        mv -v $filename $(echo $filename | sed -n 's/\([^?]*\)\?.*/\1/p')
+        mv -v "$filename" \
+           "$(echo "$filename" | sed -n 's/\([^?]*\)\?.*/\1/p')"
     fi
 done
 echo
@@ -130,13 +131,13 @@ comm -23 download-stack-checksums checked-stack-checksums \
 : > checked-stack-checksums-new
 i=0
 overall_count=$(wc -l check-stack-checksums | cut -d' ' -f1)
-while read line; do
-    printf "\r%3u/%s" $i $overall_count 1>&2
-    echo "$line" | sha1sum -c --quiet
-    if [ $? -eq 0 ]; then
+while read -r line; do
+    printf "\r%3u/%s" $i "$overall_count" 1>&2
+    if "$line" | sha1sum -c --quiet
+    then
         echo "$line" >> checked-stack-checksums-new
     else
-        echo "corrupted stack setup file: $(echo $line | cut -d' ' -f1)"
+        echo "corrupted stack setup file: $(echo "$line" | cut -d' ' -f1)"
         rm -fv "$line"
         echo "run the script again to try to re-download it"
     fi
@@ -149,8 +150,8 @@ echo
 
 
 echo "======= downloading snapshots.json ======================================"
-$WGET -N -P "$MIRROR_DIR" "$STACKAGE_SNAPSHOTS" 2>&1
-if [ $? -ne 0 ]; then
+if ! $WGET -N -P "$MIRROR_DIR" "$STACKAGE_SNAPSHOTS" 2>&1
+then
     echo "error downloading snapshots.json"
     exit 2
 fi
@@ -159,16 +160,25 @@ echo
 
 echo "======= downloading lts build plans ====================================="
 if test -d "$MIRROR_DIR/build-plans/lts-haskell"; then
-    cd "$MIRROR_DIR/build-plans/lts-haskell"
-    git pull origin master
-    if [ $? -ne 0 ]; then
+    if ! cd "$MIRROR_DIR/build-plans/lts-haskell"
+    then
+        echo "error changing directory to " \
+             "\"$MIRROR_DIR/build-plans/lts-haskell\"!"
+        exit 9
+    fi
+    if ! git pull origin master
+    then
         echo "error pulling repository of lts-haskell build plans"
         exit 3
     fi
-    cd -
+    if ! cd -
+    then
+        echo "error changing directory to \"$HOME\"!"
+        exit 10
+    fi
 else
-    git clone $STACKAGE_BP_LTS "$MIRROR_DIR/build-plans/lts-haskell"
-    if [ $? -ne 0 ]; then
+    if ! git clone $STACKAGE_BP_LTS "$MIRROR_DIR/build-plans/lts-haskell"
+    then
         echo "error cloning repository of lts-haskell build plans"
         exit 4
     fi
@@ -178,16 +188,26 @@ echo
 
 echo "======= downloading nightly build plans ================================="
 if test -d "$MIRROR_DIR/build-plans/stackage-nightly"; then
-    cd "$MIRROR_DIR/build-plans/stackage-nightly"
-    git pull origin master
-    if [ $? -ne 0 ]; then
+    if ! cd "$MIRROR_DIR/build-plans/stackage-nightly"
+    then
+        echo "error changing directory to " \
+             "\"$MIRROR_DIR/build-plans/stackage-nightly\"!"
+        exit 11
+    fi
+
+    if ! git pull origin master
+    then
         echo "error pulling repository of stackage-nightly build plans"
         exit 5
     fi
-    cd -
+    if ! cd -
+    then
+        echo "error changing directory to \"$HOME\"!"
+        exit 12
+    fi
 else
-    git clone $STACKAGE_BP_NIGHT "$MIRROR_DIR/build-plans/stackage-nightly"
-    if [ $? -ne 0 ]; then
+    if ! git clone $STACKAGE_BP_NIGHT "$MIRROR_DIR/build-plans/stackage-nightly"
+    then
         echo "error cloning repository of stackage-nightly build plans"
         exit 6
     fi
@@ -198,8 +218,8 @@ echo
 echo "======= mirroring Hackage... ============================================"
 
 echo "======= downloading package index ======================================="
-$WGET -N -P "$MIRROR_DIR" "$HACKAGE_INDEX" 2>&1
-if [ $? -ne 0 ]; then
+if ! $WGET -N -P "$MIRROR_DIR" "$HACKAGE_INDEX" 2>&1
+then
     echo "error downloading package index"
     exit 7
 fi
@@ -209,11 +229,11 @@ echo
 echo "======= producing list of packages urls to download ====================="
 HACKAGE_MIRROR_ESC=$(echo $HACKAGE_MIRROR | sed -e 's/[\/&]/\\&/g')
 
-tar --list -f "$MIRROR_DIR/$(basename $HACKAGE_INDEX)" \
-  | egrep -o "(.*)/([[:digit:].]+)/" \
-  | sed "s/\(.*\)\/\(.*\)\/$/$HACKAGE_MIRROR_ESC\/\1-\2.tar.gz/" \
-  | sort -o download-packages-urls
-if [ $? -ne 0 ]; then
+if ! tar --list -f "$MIRROR_DIR/$(basename $HACKAGE_INDEX)" \
+        | grep -E -o "(.*)/([[:digit:].]+)/" \
+        | sed "s/\(.*\)\/\(.*\)\/$/$HACKAGE_MIRROR_ESC\/\1-\2.tar.gz/" \
+        | sort -u -o download-packages-urls
+then
     echo "error getting list of packages urls to download"
     exit 8
 fi
@@ -238,11 +258,11 @@ comm -23 download-packages-files checked-packages-files \
 : > checked-packages-files-new
 i=0
 overall_count=$(wc -l check-packages-files | cut -d' ' -f1)
-while read line; do
-    printf "\r%5u/%s" $i $overall_count 1>&2
-    gzip --test "$MIRROR_DIR/packages/$line"
-    if [ $? -eq 0 ]; then
-        echo $line >> checked-packages-files-new
+while read -r line; do
+    printf "\r%5u/%s" $i "$overall_count" 1>&2
+    if gzip --test "$MIRROR_DIR/packages/$line"
+    then
+        echo "$line" >> checked-packages-files-new
     else
         echo "corrupted or missing package file: $line"
         rm -fv "$MIRROR_DIR/packages/$line"
