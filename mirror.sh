@@ -20,7 +20,7 @@ STACKAGE_SNAPSHOTS="https://www.stackage.org/download/snapshots.json"
 STACKAGE_BP_LTS="https://github.com/fpco/lts-haskell.git"
 STACKAGE_BP_NIGHT="https://github.com/fpco/stackage-nightly.git"
 HACKAGE_MIRROR="https://s3.amazonaws.com/hackage.fpcomplete.com/package"
-HACKAGE_INDEX="https://s3.amazonaws.com/hackage.fpcomplete.com/00-index.tar.gz"
+HACKAGE_INDEX="https://s3.amazonaws.com/hackage.fpcomplete.com/01-index.tar.gz"
 
 if test -z $1; then
     MIRROR_DIR="mirror"
