@@ -8,4 +8,4 @@ urls:
 package-indices:
 - name: Hackage
   download-prefix: $MIRROR_URL/packages/
-  http: $MIRROR_URL/00-index.tar.gz
+  http: $MIRROR_URL/01-index.tar.gz
