@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,13 @@ if test -z "$2"; then
     MIRROR_URL="http://localhost:3000"
 else
     MIRROR_URL="$2"
+fi
+
+if test -z "$3"; then
+    JOBS_DOWNLOAD=4 #Defaulting to 4 parallel downloads if nproc does not exists
+    command -v nproc 1>/dev/null 2>&1 && { JOBS_DOWNLOAD=$(nproc --all); }
+else
+    JOBS_DOWNLOAD=$3
 fi
 
 WGET="wget -nv" # non-verbose wget
@@ -241,10 +248,10 @@ echo
 
 
 echo "======= downloading packages ============================================"
-$WGET -nc \
-  -i download-packages-urls --directory-prefix="$MIRROR_DIR/packages" 2>&1 \
-  | (>&2 tee download-packages.log) \
-|| (echo "error downloading one or more packages")
+cat download-packages-urls | xargs -n 1 -P $JOBS_DOWNLOAD $WGET \
+  -nc --directory-prefix="$MIRROR_DIR/packages" 2>&1 \
+    | (>&2 tee download-packages.log) \
+    || (echo "error downloading one or more packages")
 echo
 
 

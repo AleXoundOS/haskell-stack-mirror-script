@@ -71,7 +71,11 @@ has missing files on the server, thus causing some warning messages to show.
 It's ok.
 
 ### Tested configuration
-Tested on Arch Linux x86_64 (2017-03-03) with nginx.
+
+Tested on
+
+#### Arch Linux x86_64 (2017-03-03) with nginx.
+
 <details><summary>nginx configuration example (/etc/nginx/nginx.conf) assuming
 that you put mirror directory into "/srv/http/haskell-stack-mirror"</summary>
 ```nginx
@@ -92,6 +96,17 @@ http {
 }
 ```
 </details>
+
+#### NixOS 17.09
+
+Resulted "config.yaml" shall be extended with NixOS specific features, for example:
+```
+nix:
+  enable: true
+  packages: []
+```
+
+#### Performance and disk-space usage
 
 As of 2017-08-03 a fully downloaded mirror directory uses 25&nbsp;GiB of space.
 Approximate time it takes to verify all files integrity ~15&nbsp;minutes on a
