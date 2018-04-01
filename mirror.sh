@@ -267,7 +267,8 @@ i=0
 overall_count=$(wc -l check-packages-files | cut -d' ' -f1)
 while read -r line; do
     printf "\r%5u/%s" $i "$overall_count" 1>&2
-    if gzip --test "$MIRROR_DIR/packages/$line"
+    gzip --test "$MIRROR_DIR/packages/$line"
+    if [[ $? -eq 0 || $? -eq 2 ]]
     then
         echo "$line" >> checked-packages-files-new
     else
