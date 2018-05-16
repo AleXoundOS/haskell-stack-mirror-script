@@ -41,7 +41,7 @@ else
     JOBS_DOWNLOAD=$3
 fi
 
-WGET="wget -nv" # non-verbose wget
+WGET="wget -nv " # non-verbose wget
 exec > >(tee mirror.log) # 2>&1
 
 # generating config.yaml
@@ -59,7 +59,8 @@ $WGET -N -P "$MIRROR_DIR" "$STACK_SETUP" 2>&1 \
 MIRROR_URL_ESC=\
 $(echo "$MIRROR_URL" | sed -e 's/[\/&]/\\&/g')
 # replace part of url except it's basename in all urls from YAML
-sed "s/\( \+url\: *\)\"http.*\/\([^?]*\).*\"\$/\1$MIRROR_URL_ESC\/stack\/\2/" \
+sed 's/\( \+url\: *\)\"http.*\/\([^?]*\).*\"\$'/`\
+ `"\\1$MIRROR_URL_ESC\\/stack\\/\\2/" \
   "$MIRROR_DIR/stack-setup-2.yaml" \
   > "$MIRROR_DIR/stack-setup-mirror.yaml"
 echo
@@ -67,26 +68,28 @@ echo
 
 echo "======= producing list of stack setup files to download ================="
 YAML="$MIRROR_DIR/$(basename $STACK_SETUP)"
-REGEX_SHA1="sha1\: *\([[:xdigit:]]*\)"
+REGEX_SHA1='sha1\: *\([[:xdigit:]]*\)'
 : > download-stack-urls
 : > download-stack-checksums
 # get line numbers of url records in YAML and find nearby sha1
 grep -E -n "url:( *)\"(.*)\"" "$YAML" \
   | cut -d':' -f1 \
   | while read -r line_number; do
-        url=$(sed -n "${line_number}s/ \+url: *\"\(.*\)\"/\1/p" "$YAML")
-        whitespace=$(sed -n "${line_number}s/\( \+\)url\: *\".*\"/\1/p" "$YAML")
+        url=$(sed -n "${line_number}s"/' \+url: *\"\(.*\)\"/\1/p' "$YAML")
+        whitespace=`\
+          `$(sed -n "${line_number}s"/'\( \+\)url\: *\".*\"/\1/p' "$YAML")
         sha1=""
 
         # trying to find sha1 below
         line_below=$((line_number + 1))
         while test -z $sha1; do
-            if test -z "$(sed -n "${line_below}s/\(${whitespace}\).*/\1/p" \
-                          "$YAML")"; then
+            if test -z `\
+               `"$(sed -n "${line_below}s/\\(${whitespace}\\).*/\\1/p" "$YAML")"
+            then
                 break
             else
-                sha1=$(sed -n "${line_below}s/${whitespace}$REGEX_SHA1/\1/p" \
-                       "$YAML")
+                sha1=$(sed -n "${line_below}s/${whitespace}$REGEX_SHA1/\\1/p" \
+                           "$YAML")
             fi
             ((++line_below))
         done
@@ -94,11 +97,12 @@ grep -E -n "url:( *)\"(.*)\"" "$YAML" \
         # trying to find sha1 above
         line_above=$((line_number - 1))
         while test -z "$sha1"; do
-            if test -z "$(sed -n "${line_above}s/\(${whitespace}\).*/\1/p" \
-                          "$YAML")"; then
+            if test -z `\
+               `"$(sed -n "${line_above}s/\\(${whitespace}\\).*/\\1/p" "$YAML")"
+            then
                 break
             else
-                sha1=$(sed -n "${line_above}s/${whitespace}$REGEX_SHA1/\1/p" \
+                sha1=$(sed -n "${line_above}s/${whitespace}$REGEX_SHA1/\\1/p" \
                        "$YAML")
             fi
             ((--line_above))
@@ -139,8 +143,8 @@ comm -23 download-stack-checksums checked-stack-checksums \
 i=0
 overall_count=$(wc -l check-stack-checksums | cut -d' ' -f1)
 while read -r line; do
-    printf "\r%3u/%s" $i "$overall_count" 1>&2
-    if "$line" | sha1sum -c --quiet
+    printf "\\r%3u/%s" $i "$overall_count" 1>&2
+    if echo "$line" | sha1sum -c --quiet
     then
         echo "$line" >> checked-stack-checksums-new
     else
@@ -238,7 +242,7 @@ HACKAGE_MIRROR_ESC=$(echo $HACKAGE_MIRROR | sed -e 's/[\/&]/\\&/g')
 
 if ! tar --list -f "$MIRROR_DIR/$(basename $HACKAGE_INDEX)" \
         | grep -E -o "(.*)/([[:digit:].]+)/" \
-        | sed "s/\(.*\)\/\(.*\)\/$/$HACKAGE_MIRROR_ESC\/\1-\2.tar.gz/" \
+        | sed 's/\(.*\)\/\(.*\)\/$'/"$HACKAGE_MIRROR_ESC\\/\\1-\\2.tar.gz/" \
         | sort -u -o download-packages-urls
 then
     echo "error getting list of packages urls to download"
@@ -248,7 +252,8 @@ echo
 
 
 echo "======= downloading packages ============================================"
-cat download-packages-urls | xargs -n 1 -P $JOBS_DOWNLOAD $WGET \
+# shellcheck disable=SC2086
+xargs -a download-packages-urls -n 1 -P "$JOBS_DOWNLOAD" $WGET \
   -nc --directory-prefix="$MIRROR_DIR/packages" 2>&1 \
     | (>&2 tee download-packages.log) \
     || (echo "error downloading one or more packages")
@@ -266,9 +271,8 @@ comm -23 download-packages-files checked-packages-files \
 i=0
 overall_count=$(wc -l check-packages-files | cut -d' ' -f1)
 while read -r line; do
-    printf "\r%5u/%s" $i "$overall_count" 1>&2
-    gzip --test "$MIRROR_DIR/packages/$line"
-    if [[ $? -eq 0 || $? -eq 2 ]]
+    printf "\\r%5u/%s" $i "$overall_count" 1>&2
+    if gzip --test "$MIRROR_DIR/packages/$line" || [[ $? -eq 2 ]]
     then
         echo "$line" >> checked-packages-files-new
     else
