@@ -35,8 +35,7 @@ else
 fi
 
 if test -z "$3"; then
-    JOBS_DOWNLOAD=4 #Defaulting to 4 parallel downloads if nproc does not exists
-    command -v nproc 1>/dev/null 2>&1 && { JOBS_DOWNLOAD=$(nproc --all); }
+    JOBS_DOWNLOAD=1
 else
     JOBS_DOWNLOAD=$3
 fi
