@@ -148,8 +148,8 @@ while read -r line; do
     then
         echo "$line" >> checked-stack-checksums-new
     else
-        echo "corrupted stack setup file: $(echo "$line" | cut -d' ' -f1)"
-        rm -fv "$line"
+        echo "corrupted stack setup file: $(echo "$line" | cut -d' ' -f2)"
+        rm -fv "$(echo "$line" | cut -d' ' -f2)"
         echo "run the script again to try to re-download it"
     fi
     ((++i))
