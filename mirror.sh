@@ -59,9 +59,9 @@ MIRROR_URL_ESC=\
 $(echo "$MIRROR_URL" | sed -e 's/[\/&]/\\&/g')
 # replace part of url except it's basename in all urls from YAML
 sed "s/\\( \\+url\\: *\\)\"http.*\\/\\([^?]*\\).*\"\$`\
-  `/\\1$MIRROR_URL_ESC\\/stack\\/\\2/" \
-  "$ORIG_SETUP_YAML" \
-  > "stack-setup-mirror.yaml"
+    `/\\1$MIRROR_URL_ESC\\/stack\\/\\2/" \
+    "$MIRROR_DIR/stack-setup-2.yaml" \
+    > "$MIRROR_DIR/stack-setup-mirror.yaml"
 echo
 
 
