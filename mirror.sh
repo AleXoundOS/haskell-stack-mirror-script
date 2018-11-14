@@ -251,11 +251,21 @@ echo
 
 
 echo "======= downloading packages ============================================"
+if test "$JOBS_DOWNLOAD" -eq 1
+then
+    # this way is a lot faster when packages were already downloaded once
+    $WGET -nc \
+          -i download-packages-urls --directory-prefix="$MIRROR_DIR/packages" \
+          2>&1 \
+        | (>&2 tee download-packages.log) \
+        || (echo "error downloading one or more packages")
+else
 # shellcheck disable=SC2086
-xargs -a download-packages-urls -n 1 -P "$JOBS_DOWNLOAD" $WGET \
-  -nc --directory-prefix="$MIRROR_DIR/packages" 2>&1 \
-    | (>&2 tee download-packages.log) \
-    || (echo "error downloading one or more packages")
+    xargs -a download-packages-urls -n 1 -P "$JOBS_DOWNLOAD" $WGET \
+          -nc --directory-prefix="$MIRROR_DIR/packages" 2>&1 \
+        | (>&2 tee download-packages.log) \
+        || (echo "error downloading one or more packages")
+fi
 echo
 
 
