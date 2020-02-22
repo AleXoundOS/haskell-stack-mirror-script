@@ -1,9 +1,6 @@
-### This script downloads everything you need today to develop software in Haskell
-(except remote documentation)
+This script downloads **full stack infrastracture** and **all hackage packages**.
 
-That is: **stack infrastracture** and **hackage packages**.
-
-In order to establish the **offline mirror** you need a *http server* to serve
+In order to establish the **offline mirror** you need a http server to serve
 downloaded files.
 
 ### Usage
